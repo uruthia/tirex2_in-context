@@ -1,16 +1,13 @@
 # In-context forecasting
 
-TiRex-2 forecasts zero-shot: everything it knows about a series comes from the context you
-pass in. This guide uses a real hydraulic test rig to show how the *amount* of context, and a
-related sensor passed as a covariate, change the forecast. The whole guide uses one pair of
-cycles: cycle **1787** is the context, cycle **1788** is the ground truth to forecast.
+TiRex-2 forecasts zero-shot, so on some series it simply does not recognise the pattern, and the forecast is poor. This guide shows a simple way to fix that without any fine-tuning: take the series, repeat it several times back to back, and give the repeated sequence to the model as context. Each repetition shows the model the same pattern again, so it can learn from it in-context and forecast the next cycle correctly. We demonstrate this on a real hydraulic dataset: cycle 1787 is the context, repeated n times, and cycle 1788 is the ground truth we try to forecast. By varying n, you can see how the amount of context changes the forecast precision.
 
 ???+ info "Key terms"
     | Term | Meaning |
     | :--- | :------ |
-    | **Cycle** | One 60 s run of the rig's load profile, stored as 200 points (0.3 s resolution). |
-    | **PS1 / EPS1** | PS1 = pressure sensor (bar). EPS1 = motor power (W). |
-    | **Context** | The history given to the model. Here: cycle 1787, optionally repeated *n* times back to back. |
+    | **Cycle** | One 60s run of the rig's load profile, stored as 200 points (0.3 s resolution). |
+    | **PS1 / EPS1** | PS1 = Hydraulic pressure sensor (bar). EPS1 = motor power usage(W). |
+    | **Context** | The history given to the model before making the prediction. Here: cycle 1787, repeated *n* times back to back. |
     | **Forecast horizon** | What the model predicts: the next full cycle (200 points = 60 s), compared with the real cycle 1788. |
     | **10–90 % band** | The range between the 0.1 and 0.9 quantile forecasts. The model expects the truth to fall inside it 80 % of the time. |
     | **Covariate** | An extra series (here EPS1) given alongside the target (PS1) as additional context. |
@@ -37,7 +34,7 @@ EPS1 live on very different scales, but they move together.
 
 ## Forecasting the next cycle
 
-We give TiRex-2 cycle 1787 as context, optionally repeated *n* times, and ask for the next 200
+We give TiRex-2 cycle 1787 as context repeated *n* times, and ask for predicting the next 200
 points:
 
 ```python
@@ -57,7 +54,6 @@ ts = TimeseriesType(
 )
 
 forecast = model.forecast([ts], prediction_length=200, output_type="numpy")[0]
-# forecast.shape == (1, 9, 200)  -> (num_target_variates, num_quantiles, prediction_length)
 
 median, p10, p90 = forecast[0, 4], forecast[0, 0], forecast[0, 8]
 mae = np.mean(np.abs(median - ps1[1788]))   # error against the real next cycle, in bar
@@ -72,7 +68,7 @@ score the median against the real cycle 1788 with the MAE.
 With a single cycle of context, TiRex-2 has seen the shape only once:
 
 <iframe src="../../assets/in-context/forecast-one-cycle.html" title="PS1 forecast from one cycle of context"
-        loading="lazy" style="width:100%; height:600px; border:0;"></iframe>
+        loading="lazy" style="width:100%; height:635px; border:0;"></iframe>
 
 The forecast is flat and cautious, with a wide band (MAE = 11.02 bar). From one cycle alone,
 the model cannot tell that the pattern will repeat.
@@ -85,9 +81,12 @@ the model that the signal is periodic, and how stable it is. Move the slider, or
 to see the forecast change with *n*:
 
 <iframe src="../../assets/in-context/forecast-context-slider.html" title="PS1 forecast as the context grows"
-        loading="lazy" style="width:100%; height:600px; border:0;"></iframe>
+        loading="lazy" style="width:100%; height:610px; border:0;"></iframe>
 
-The MAE for each context length:
+### Forecast error for each context length
+
+The chart shows the **MAE of the forecast of cycle 1788** for each context length, from 1 to
+5 repeated cycles. The label on the right is the change from 1 to 5 cycles.
 
 <iframe src="../../assets/in-context/error-vs-context.html" title="Forecast error vs. context length"
         loading="lazy" style="width:100%; height:520px; border:0;"></iframe>
@@ -116,9 +115,11 @@ The green forecast uses PS1 **and** EPS1, the red one uses PS1 only. The lower p
 extra signal the model sees:
 
 <iframe src="../../assets/in-context/forecast-covariate-slider.html" title="Univariate vs. covariate-informed PS1 forecast"
-        loading="lazy" style="width:100%; height:800px; border:0;"></iframe>
+        loading="lazy" style="width:100%; height:810px; border:0;"></iframe>
 
-The two errors side by side:
+### Univariate vs. covariate error
+
+The **MAE of both forecasts** for each context length, side by side:
 
 <iframe src="../../assets/in-context/error-univariate-vs-covariate.html" title="Forecast error: univariate vs. covariate"
         loading="lazy" style="width:100%; height:520px; border:0;"></iframe>
