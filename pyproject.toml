@@ -7,8 +7,10 @@ requires-python = ">=3.12"
 dependencies = [
     "ipykernel>=7.4.0",
     "matplotlib>=3.11.2",
+    "nbformat>=5.11.1",
     "numpy>=2.5.3",
     "pandas>=3.0.6",
+    "plotly>=7.1.0",
     "requests>=2.34.2",
     "tirex-2>=0.3.0",
 ]
@@ -19,3 +21,8 @@ tirex2-in-context = "tirex2_in_context:main"
 [build-system]
 requires = ["uv_build>=0.12.21,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "nbconvert>=7.17.1",
+]
